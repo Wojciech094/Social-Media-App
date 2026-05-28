@@ -1,107 +1,149 @@
-# Vanilla TypeScript SPA Web App Boilerplate
+# Social Media Client — Square Pumpkin
 
-This repository is a modern boilerplate starter pack for building front-end web applications using TypeScript, ES2025 features, and Vite. It is designed for educational purposes and demonstrates best practices for consuming authenticated APIs, performing CRUD operations, and leveraging the latest advancements in the JavaScript ecosystem.
+![Social Media Client feed preview](./public/images/social-media-client.jpg)
 
-## Project Assets
+A responsive social media client created as a group project for the **CSS Frameworks** course at Noroff. The application allows authenticated users to browse posts, view profiles, follow users and interact with social content through a modern dark-themed interface.
 
-- [Production deploy](https://javascript-2-assignment.netlify.app/)
-- [Production Deployment Dashboard](https://app.netlify.com/projects/javascript-2-assignment/overview)
-- [Lo-Fi Design Spec](https://www.figma.com/design/YeEfWVxR4FyKKovwljxphw/Javascript-2-CA?node-id=0-1&p=f)
-- [API URL](https://docs.noroff.dev/docs/v2/social/posts)
+## Live Demo
+
+* [View deployed application](https://bucolic-mousse-4e51e9.netlify.app/login)
+
+## Project Overview
+
+Square Pumpkin is a social media client built with TypeScript, Vite and Tailwind CSS, using the Noroff Social API. The project focuses on building a responsive and user-friendly interface for browsing and interacting with social content.
+
+Users can register or log in, view a personalized feed, open individual posts, explore profile information and interact with content through available social features.
 
 ## Features
 
-- **TypeScript-first**: Strongly-typed codebase for maintainability and scalability.
-- **ES2025+ Syntax**: Utilizes the latest ECMAScript features, including:
-  - Routing patterns (URL pattern matching)
-  - Dynamic module importing (`import()`)
-  - Service Workers for offline support and caching
-- **SPA Routing**: Client-side routing for seamless navigation.
-- **API Integration**: Example code for consuming authenticated REST APIs.
-- **CRUD Operations**: Templates for Create, Read, Update, and Delete actions.
-- **Vite-Powered**: Fast development server and optimized production builds.
-- **Unit Testing**: Built-in support for unit testing with popular frameworks.
-- **Educational Focus**: Clear code structure and comments for learning modern web development.
+* User registration and login
+* Responsive social media feed
+* Profile overview with follower and following information
+* Post detail pages
+* Follow interaction between users
+* Post reactions and comments
+* Search functionality for feed content
+* Mobile navigation adapted for smaller screens
 
-## Tech Stack
+## Portfolio 2 Improvement
 
-- [Vite](https://nextjs.org/)
-- [Animate CSS](https://animate.style/)
-- [Cypress](https://www.cypress.io/)
-- [Luxon](https://moment.github.io/luxon/#/)
-- [Font Awesome](https://fontawesome.com/search?ic=free)
-- [Prettier](https://prettier.io/) - An opinionated code formatter
-- [Vitest](https://vitest.dev/) - Vite-native unit testing framework
+For Portfolio 2, the project was reviewed and refined for professional presentation.
+
+The improvement focused on:
+
+* restructuring the feed layout for smaller screens,
+* removing horizontal overflow issues on mobile devices,
+* improving the visual consistency of the post detail page,
+* correcting author display issues on individual posts,
+* enabling follow interaction on the post detail view.
+
+These changes improve readability, usability and overall presentation quality across devices.
+
+## Technologies Used
+
+* TypeScript
+* Vite
+* Tailwind CSS
+* Noroff Social API
+* Luxon
+* Font Awesome
+* Animate.css
+
+## API
+
+This project consumes the Noroff Social API:
+
+* [Noroff Social Posts API Documentation](https://docs.noroff.dev/docs/v2/social/posts)
+
+## Design Resources
+
+* [Lo-Fi Design Spec](https://www.figma.com/design/YeEfWVxR4FyKKovwljxphw/Javascript-2-CA?node-id=0-1&p=f)
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or newer recommended)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+Make sure you have installed:
+
+* Node.js version 18 or newer
+* npm
 
 ### Installation
 
-1. **Clone the repository:**
+1. Clone this repository:
 
-   ```sh
-   git clone https://github.com/Nirush4/JavaScript-2-Course-Assignment
-   cd javaScript-2-course-assignment
+   ```bash
+   git clone https://github.com/Wojciech094/Social-Media-App.git
    ```
 
-2. **Install dependencies:**
+2. Navigate into the project directory:
 
-   ```sh
+   ```bash
+   cd Social-Media-App
+   ```
+
+3. Install dependencies:
+
+   ```bash
    npm install
-   # or
-   yarn install
    ```
 
-3. **Create a `.env` file:**
-   Copy the example below and adjust as needed:
+4. Start the development server:
 
-   ```env
-   # .env
-   VITE_API_BASE_URL=https://api.example.com
-   VITE_API_KEY=your_api_key_here
-   VITE_AUTH_TOKEN=your_auth_token_here
-   VITE_APP_NAME=VanillaTSApp
-   ```
-
-   > **Note:** All environment variables prefixed with `VITE_` are exposed to your client-side code.
-
-4. **Start the development server:**
-
-   ```sh
+   ```bash
    npm run dev
-   # or
-   yarn dev
    ```
+
+5. Open the local URL shown in the terminal.
+
+## Build for Production
+
+To create a production build:
+
+```bash
+npm run build
+```
+
+To preview the completed production build locally:
+
+```bash
+npm run preview
+```
+
+## Environment Variables
+
+If environment variables are required locally, create a `.env` file in the project root based on the configuration used by the application.
+
+Do not commit `.env` files, API keys or private credentials to a public repository.
 
 ## Project Structure
 
+```text
+├── public/                 # Static images and assets
+├── src/
+│   ├── components/         # Reusable UI components
+│   ├── pages/              # Feed, profile, post details and auth views
+│   ├── router/             # Client-side routing
+│   ├── services/           # API and post interaction logic
+│   ├── types/              # TypeScript types
+│   └── utils/              # Shared utility functions
+├── index.html
+├── package.json
+└── vite.config.ts
 ```
-├── index.html              # Main HTML entry point
-├── package.json            # Project metadata and scripts
-├── tsconfig.json           # TypeScript configuration
-├── public/                 # Static assets
-│   └── vite.svg
-├── src/                    # Source code
-│   ├── main.ts             # App entry point
-│   ├── style.css           # Styles
-│   ├── typescript.svg      # Example asset
-│   └── vite-env.d.ts       # Vite environment types
-└── .env                    # Environment variables (not committed)
-```
+
+## Group Project Acknowledgement
+
+This application was originally developed as a group project.
+
+Contributors:
+
+* **Wojtek Leśniak** — [Wojciech094](https://github.com/Wojciech094)
+* **Nirushan Rajamanoharan** — [Nirush4](https://github.com/Nirush4)
+* **Tubha Ahmad**
+
+Portfolio 2 review and presentation improvements were carried out by **Wojtek Leśniak** as part of his individual portfolio submission.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-## Author 👨‍💻​
-
-• Nirushan Rajamanoharan (@Nirush4)
-
-**Happy coding!**
+This project is used for educational purposes as part of coursework at Noroff.

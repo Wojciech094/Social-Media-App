@@ -1,190 +1,354 @@
 // src/pages/PostDetailsPage.ts
-import { getAllPosts } from '../services/posts/posts';
 import { DateTime } from 'luxon';
-import type { Post } from '../types/noroff-types';
+import { getToken } from '../services/api/client';
+import { getAllPosts } from '../services/posts/posts';
+import type { Comment, MediaMaybe, Post } from '../types/noroff-types';
+import escHtml from '../utils/escHtml';
 
-// guard: czy obiekt ma .data jako tablicę Postów
-function hasDataArray(x: unknown): x is { data: Post[] } {
-  return !!x && typeof x === 'object' && Array.isArray((x as any).data);
+const AVATAR_PLACEHOLDER = '/profile-avatar.png';
+const COMMENT_AVATAR_PLACEHOLDER = 'https://placehold.co/32x32?text=%20';
+
+function currentUserName(): string | null {
+	try {
+		const token = getToken();
+
+		if (!token) return null;
+
+		const middle = token.split('.')[1];
+
+		if (!middle) return null;
+
+		let base64 = middle.replace(/-/g, '+').replace(/_/g, '/');
+
+		while (base64.length % 4) {
+			base64 += '=';
+		}
+
+		const payload = JSON.parse(atob(base64));
+
+		const name = payload?.name ?? payload?.username ?? payload?.user_name ?? payload?.sub;
+
+		return typeof name === 'string' ? name : null;
+	} catch {
+		return null;
+	}
 }
 
-export default async function PostDetailsPage(
-  params: string[] = []
-): Promise<string> {
-  const id = Number(params[0]);
-  if (isNaN(id)) {
-    return `<p class="text-red-500 text-center p-10">Invalid post ID</p>`;
-  }
+function hasDataArray(value: unknown): value is { data: Post[] } {
+	return Boolean(value) && typeof value === 'object' && Array.isArray((value as { data?: unknown }).data);
+}
 
-  const raw: unknown = await getAllPosts();
+function getMedia(media: MediaMaybe | undefined | null): {
+	url: string;
+	alt: string;
+} | null {
+	if (typeof media === 'string' && media.trim()) {
+		return {
+			url: media,
+			alt: 'Post image',
+		};
+	}
 
-  let posts: Post[] = [];
-  if (Array.isArray(raw)) {
-    posts = raw as Post[];
-  } else if (hasDataArray(raw)) {
-    posts = raw.data;
-  } else {
-    return `<p class="text-red-500 text-center p-10">Error loading post</p>`;
-  }
+	if (media && typeof media === 'object' && media.url) {
+		return {
+			url: media.url,
+			alt: media.alt || 'Post image',
+		};
+	}
 
-  const post = posts.find((p) => Number((p as any).id) === id);
-  if (!post) {
-    return `<p class="text-red-500 text-center p-10">Post not found</p>`;
-  }
+	return null;
+}
 
-  const relativeTime =
-    DateTime.fromISO(
-      (post as any).createdAt || new Date().toISOString()
-    ).toRelative({
-      locale: 'en',
-    }) || 'just now';
+function getLikesCount(post: Post): number {
+	const heartReaction = post.reactions?.find(reaction => reaction.symbol === '❤️');
 
-  const isLiked = Boolean((post as any).isLiked);
-  const likeBtnClass = isLiked
-    ? 'text-pink-600 animate__animated animate__heartBeat'
-    : 'text-pink-500';
+	return heartReaction?.count ?? post._count?.reactions ?? 0;
+}
 
-  const likes = ((post as any)._count?.reactions ??
-    (post as any).reactions?.length ??
-    0) as number;
+function renderComments(comments: Comment[], currentUser: string | null, postId: number): string {
+	if (comments.length === 0) {
+		return `
+			<li class="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-400">
+				No comments yet. Be the first to comment.
+			</li>
+		`;
+	}
 
-  const commentsCount = ((post as any)._count?.comments ??
-    (post as any).comments?.length ??
-    0) as number;
+	return comments
+		.slice()
+		.sort((first, second) => new Date(second.created).getTime() - new Date(first.created).getTime())
+		.map(comment => {
+			const canDelete = Boolean(currentUser && comment.owner === currentUser);
+			const avatar = comment.author?.avatar?.url || COMMENT_AVATAR_PLACEHOLDER;
+			const avatarAlt = comment.author?.avatar?.alt || `${comment.owner} avatar`;
 
-  const isFollowing = Boolean((post as any).isFollowing);
-  const followBtnLabel = isFollowing ? 'Unfollow' : 'Follow';
-  const followBtnClass = isFollowing
-    ? 'bg-red-500 hover:bg-red-600'
-    : 'bg-blue-500 hover:bg-blue-600';
+			return `
+				<li
+					class="comment rounded-xl border border-white/10 bg-white/5 p-4"
+					data-id="${comment.id}"
+					data-owner="${escHtml(comment.owner)}">
+					<div class="flex items-start gap-3">
+						<img
+							src="${escHtml(avatar)}"
+							alt="${escHtml(avatarAlt)}"
+							class="h-9 w-9 shrink-0 rounded-full object-cover"
+							onerror="this.onerror=null; this.src='${COMMENT_AVATAR_PLACEHOLDER}'"
+						/>
 
-  return `
-  <div class="min-h-screen flex flex-col bg-gray-900 text-white">
-    <div class="flex-grow flex items-center justify-center p-4 overflow-auto">
-      <article class="max-w-2xl w-full bg-white rounded-xl shadow-md overflow-hidden p-6 text-gray-900 flex flex-col"
-              style="max-height: 90vh; min-height: 700px;">
+						<div class="min-w-0 flex-1">
+							<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+								<span class="font-semibold text-white">
+									@${escHtml(comment.owner)}
+								</span>
 
-        <!-- Header -->
-        <div class="flex items-center mb-6 justify-between">
-          <div class="flex items-center">
-            <div class="w-14 h-14 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center mr-4">
-              <img
-                src="${
-                  (post as any).media?.url
-                    ? (post as any).media.url
-                    : `https://i.pravatar.cc/100?u=${(post as any).userId}`
-                }"
-                alt="${
-                  (post as any).author || `user${(post as any).userId}`
-                }'s avatar"
-                class="w-full h-full object-cover"
-              />
-            </div>
-            <div>
-              <h1 class="text-2xl font-bold text-gray-800">${
-                (post as any).title
-              }</h1>
-              <p class="text-sm text-gray-500">
-                ${relativeTime} • By 
-                <span class="font-semibold">${
-                  (post as any).author || `@user${(post as any).userId}`
-                }</span>
-              </p>
-            </div>
-          </div>
-          <button
-            class="follow-btn text-white cursor-pointer px-3 py-1 rounded ${followBtnClass} text-lg font-semibold transition-colors"
-            data-authorid="${(post as any).userId}"
-            aria-label="${followBtnLabel} ${
-    (post as any).author || `user${(post as any).userId}`
-  }"
-            type="button"
-          >
-            ${followBtnLabel}
-          </button>
-        </div>
+								<span class="text-gray-400">
+									${escHtml(new Date(comment.created).toLocaleString())}
+								</span>
+							</div>
 
-        <!-- Image -->
-        ${
-          (post as any).media?.url
-            ? `<div class="mb-6 flex-shrink-0">
-                <img
-                  src="${(post as any).media.url}"
-                  alt="${(post as any).media.alt || 'Post image'}"
-                  class="w-full rounded-lg object-cover shadow-md max-h-[41vh] mx-auto"
-                />
-              </div>`
-            : ''
-        }
+							<p class="comment-body mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-200">
+								${escHtml(comment.body)}
+							</p>
 
-        <!-- Body -->
-        <p class="text-gray-900 text-lg leading-relaxed flex-grow overflow-auto">
-          ${(post as any).body ?? ''}
-        </p>
+							${
+								canDelete
+									? `
+										<button
+											type="button"
+											data-delete-comment
+											data-post-id="${postId}"
+											data-comment-id="${comment.id}"
+											class="mt-3 text-xs font-medium text-red-300 transition hover:text-red-200">
+											Delete
+										</button>
+									`
+									: ''
+							}
+						</div>
+					</div>
+				</li>
+			`;
+		})
+		.join('');
+}
 
-        <!-- Tags -->
-        ${
-          (post as any).tags?.length
-            ? `<div class="flex flex-wrap gap-3 mb-6">
-                ${((post as any).tags as any[])
-                  .map(
-                    (tag) =>
-                      `<span class="bg-gray-100 text-gray-600 text-sm px-3 py-1 rounded-full cursor-default">#${tag}</span>`
-                  )
-                  .join('')}
-              </div>`
-            : ''
-        }
+export default async function PostDetailsPage(params: string[] = []): Promise<string> {
+	const id = Number(params[0]);
 
-        <!-- Footer -->
-        <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-200">
-          <button
-            class="like-btn flex items-center ${likeBtnClass} hover:text-pink-600 transition-colors"
-            data-postid="${(post as any).id}"
-            aria-pressed="${isLiked}"
-            aria-label="Like post"
-            type="button"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" class="w-6 h-6 mr-2">
-              <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/>
-            </svg>
-            <span class="font-semibold text-lg like-count">${likes}</span>
-          </button>
+	if (!Number.isFinite(id)) {
+		return `
+			<main class="flex min-h-screen items-center justify-center bg-gray-950 px-4 text-white">
+				<p class="rounded-xl border border-red-500/30 bg-red-500/10 px-6 py-4 text-center text-red-300">
+					Invalid post ID.
+				</p>
+			</main>
+		`;
+	}
 
-          <div class="flex items-center text-gray-600 text-sm cursor-pointer js-comments-count" role="button" tabindex="0">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="w-5 h-5 mr-1">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17 8h2a2 2 0 012 2v8a2 2 0 01-2 2h-8l-4 4v-4H7a2 2 0 01-2-2v-2"/>
-            </svg>
-            <span class="comments-count">${commentsCount}</span>
-          </div>
+	let posts: Post[] = [];
 
-          <button id="back-to-feed" class="text-blue-600 hover:underline text-lg font-semibold cursor-pointer" type="button">
-            ← Back to Feed
-          </button>
-        </div>
+	try {
+		const raw: unknown = await getAllPosts();
 
-        <!-- Comments section -->
-        <section id="comments-section" class="mt-2">
-          <h2 class="text-lg font-semibold text-gray-800 mb-3">Comments</h2>
-          <div id="comments-list" class="space-y-3">
-            <div class="text-sm text-gray-500">Loading comments…</div>
-          </div>
-        </section>
+		if (Array.isArray(raw)) {
+			posts = raw as Post[];
+		} else if (hasDataArray(raw)) {
+			posts = raw.data;
+		}
+	} catch (error) {
+		console.error('Could not load posts:', error);
 
-        <!-- Comment Form -->
-        <form id="comment-form" class="mt-4">
-          <textarea id="comment-text" placeholder="Write a comment..." required
-            class="w-full p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows="1"></textarea>
-          <button type="submit"
-            class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
-          >
-            Post Comment
-          </button>
-        </form>
+		return `
+			<main class="flex min-h-screen items-center justify-center bg-gray-950 px-4 text-white">
+				<p class="rounded-xl border border-red-500/30 bg-red-500/10 px-6 py-4 text-center text-red-300">
+					Could not load this post.
+				</p>
+			</main>
+		`;
+	}
 
-      </article>
-    </div>
-  </div>
-  `;
+	const post = posts.find(item => Number(item.id) === id);
+
+	if (!post) {
+		return `
+			<main class="flex min-h-screen items-center justify-center bg-gray-950 px-4 text-white">
+				<p class="rounded-xl border border-red-500/30 bg-red-500/10 px-6 py-4 text-center text-red-300">
+					Post not found.
+				</p>
+			</main>
+		`;
+	}
+
+	const me = currentUserName();
+
+	const authorName = post.author?.name || 'Unknown user';
+	const authorAvatar = post.author?.avatar?.url || AVATAR_PLACEHOLDER;
+	const authorAvatarAlt = post.author?.avatar?.alt || `${authorName} avatar`;
+
+	const media = getMedia(post.media);
+	const title = post.title || 'Untitled post';
+	const body = post.body || 'No description added.';
+
+	const relativeTime = DateTime.fromISO(post.created).toRelative({ locale: 'en' }) || 'just now';
+
+	const likes = getLikesCount(post);
+	const comments = Array.isArray(post.comments) ? post.comments : [];
+	const commentsCount = post._count?.comments ?? comments.length;
+
+	const shouldShowFollow = Boolean(getToken()) && Boolean(post.author?.name) && post.author?.name !== me;
+
+	return `
+		<main class="min-h-dvh bg-gray-950 px-4 py-6 text-white sm:px-6 sm:py-10">
+			<div class="mx-auto w-full max-w-3xl">
+				<button
+					id="back-to-feed"
+					type="button"
+					class="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition hover:text-white">
+					<span aria-hidden="true">←</span>
+					Back to Feed
+				</button>
+
+				<article
+					class="overflow-hidden rounded-2xl border border-white/10 bg-gray-900 shadow-2xl"
+					data-post
+					data-post-id="${post.id}">
+
+					<header class="flex flex-col gap-4 border-b border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+						<div class="flex min-w-0 items-center gap-3 sm:gap-4">
+							<img
+								src="${escHtml(authorAvatar)}"
+								alt="${escHtml(authorAvatarAlt)}"
+								class="h-12 w-12 shrink-0 rounded-full border border-gray-700 object-cover sm:h-14 sm:w-14"
+								onerror="this.onerror=null; this.src='${AVATAR_PLACEHOLDER}'"
+							/>
+
+							<div class="min-w-0">
+								<h1 class="break-words text-lg font-bold leading-snug text-white sm:text-2xl">
+									${escHtml(title)}
+								</h1>
+
+								<p class="mt-1 text-xs text-gray-400 sm:text-sm">
+									${escHtml(relativeTime)} · By
+									<span class="font-semibold text-gray-200">
+										${escHtml(authorName)}
+									</span>
+								</p>
+							</div>
+						</div>
+
+						${
+							shouldShowFollow
+								? `
+									<button
+										type="button"
+										data-follow-btn
+										data-username="${escHtml(authorName)}"
+										data-followed="false"
+										class="follow-btn w-full rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+										Follow
+									</button>
+								`
+								: ''
+						}
+					</header>
+
+					${
+						media
+							? `
+								<figure class="border-b border-white/10 bg-gray-950">
+									<img
+										src="${escHtml(media.url)}"
+										alt="${escHtml(media.alt || title)}"
+										class="max-h-[34rem] w-full object-cover"
+									/>
+								</figure>
+							`
+							: ''
+					}
+
+					<div class="p-4 sm:p-6">
+						<p class="whitespace-pre-wrap break-words text-base leading-8 text-gray-200 sm:text-lg">
+							${escHtml(body)}
+						</p>
+
+						${
+							Array.isArray(post.tags) && post.tags.length > 0
+								? `
+									<div class="mt-6 flex flex-wrap gap-2">
+										${post.tags
+											.map(
+												tag => `
+													<span class="rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-gray-300">
+														#${escHtml(String(tag))}
+													</span>
+												`,
+											)
+											.join('')}
+									</div>
+								`
+								: ''
+						}
+
+						<div class="mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-5">
+							<button
+								type="button"
+								data-like-btn
+								data-post-id="${post.id}"
+								data-symbol="❤️"
+								data-liked="0"
+								aria-pressed="false"
+								aria-label="Like post"
+								class="like-btn inline-flex items-center gap-2 rounded-full px-3 py-2 text-pink-400 transition hover:bg-white/10 hover:text-pink-300">
+								<span aria-hidden="true">❤️</span>
+								<span data-like-count class="text-sm font-semibold">${likes}</span>
+							</button>
+
+							<button
+								type="button"
+								data-comments-toggle
+								data-post-id="${post.id}"
+								class="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-gray-300 transition hover:bg-white/10 hover:text-white">
+								<span aria-hidden="true">💬</span>
+								<span>${commentsCount}</span>
+								<span class="underline">Hide</span>
+							</button>
+						</div>
+
+						<section class="mt-7 border-t border-white/10 pt-6" aria-label="Comments">
+							<h2 class="mb-4 text-lg font-semibold text-white">
+								Comments
+							</h2>
+
+							<ul data-comment-list class="space-y-3">
+								${renderComments(comments, me, post.id)}
+							</ul>
+						</section>
+
+						<form
+							data-comment-form
+							data-post-id="${post.id}"
+							class="mt-6">
+							<label for="comment-text-${post.id}" class="sr-only">
+								Write a comment
+							</label>
+
+							<textarea
+								id="comment-text-${post.id}"
+								name="comment"
+								placeholder="Write a comment..."
+								required
+								rows="3"
+								class="w-full resize-none rounded-xl border border-white/10 bg-gray-800 p-4 text-sm text-white placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"></textarea>
+
+							<button
+								type="submit"
+								class="mt-4 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700">
+								Post Comment
+							</button>
+						</form>
+					</div>
+				</article>
+			</div>
+		</main>
+	`;
 }
