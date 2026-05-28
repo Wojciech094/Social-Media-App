@@ -1,0 +1,15 @@
+{
+  "name": "__PROJECT_NAME__",
+  "short_name": "__HOMESCREEN_NAME__",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "black",
+  "theme_color": "black",
+  "icons": [
+    {
+      "src": "/public/logo-800.png",
+      "type": "image/png",
+      "sizes": "800x800"
+    }
+  ]
+}
